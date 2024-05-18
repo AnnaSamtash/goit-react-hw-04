@@ -9,7 +9,7 @@ export default function SearchBar({ onSubmit }) {
       <Formik
         initialValues={{ query: '' }}
         onSubmit={(values, actions) => {
-          if (!values.query) {
+          if (!values.query.trim()) {
             toast.error('Please enter the query text', {
               duration: 5000,
               position: 'top-right',
@@ -18,6 +18,7 @@ export default function SearchBar({ onSubmit }) {
                 backgroundColor: 'white',
               },
             });
+            actions.resetForm();
             return;
           }
           onSubmit(values.query);

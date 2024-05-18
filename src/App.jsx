@@ -6,47 +6,43 @@ import Loader from './components/Loader/Loader';
 import LoadMoreBtn from './components/LoadMoreBtn/LoadMoreBtn';
 import ErrorMessage from './components/ErrorMessage/ErrorMessage';
 import { Toaster } from 'react-hot-toast';
-import Modal from 'react-modal';
 import ImageModal from './components/ImageModal/ImageModal';
 import './App.css';
 
 const App = () => {
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [totalPages, setTotalPages] = useState(1);
   const [modalIsOpen, setIsOpen] = useState(false);
-  const [modalImage, setModalImage] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
+  const [modalImageSrc, setModalImageSrc] = useState('');
+  const [modalImageAlt, setModalImageAlt] = useState('');
 
   useEffect(() => {
-    if (searchQuery.trim() === '') {
+    if (!searchQuery) {
       return;
     }
     async function fetchPhotos() {
+      setError(null);
+      setLoading(true);
       try {
-        setError(false);
-        setLoading(true);
-        if (page > totalPages) {
-          return;
-        }
-        const data = await fetchPhotosByQuery(searchQuery, page);
-        if (data.total_pages === 0) {
-          setErrorMsg(
-            'Sorry, there are no images matching your search query. Please try again!'
+        const { results, total_pages } = await fetchPhotosByQuery(
+          searchQuery,
+          page
+        );
+        if (total_pages === 0) {
+          throw new Error(
+            'Sorry, there are no images matching your search query'
           );
-          setError(true);
-          return;
         }
-        setTotalPages(data.total_pages);
+        setTotalPages(total_pages);
         setPhotos(prevPhotos => {
-          return [...prevPhotos, ...data.results];
+          return [...prevPhotos, ...results];
         });
       } catch (error) {
-        setErrorMsg(`${error.message} Please try again!`);
-        setError(true);
+        setError(`${error.message}. Please try again!`);
       } finally {
         setLoading(false);
       }
@@ -54,27 +50,29 @@ const App = () => {
     fetchPhotos();
   }, [page, searchQuery]);
 
-  const handleSearch = async query => {
+  const handleSearch = query => {
     setPhotos([]);
     setSearchQuery(query);
     setPage(1);
+    setTotalPages(1);
   };
 
-  const handleLoadMore = async () => {
+  const handleLoadMore = () => {
     setPage(page + 1);
   };
 
   // =============modal==============
 
-  Modal.setAppElement('#root');
-
-  function openModal(imgUrl) {
+  function openModal(imgUrl, alt) {
     setIsOpen(true);
-    setModalImage(imgUrl);
+    setModalImageSrc(imgUrl);
+    setModalImageAlt(alt);
   }
 
   function closeModal() {
     setIsOpen(false);
+    setModalImageSrc('');
+    setModalImageAlt('');
   }
 
   return (
@@ -82,7 +80,7 @@ const App = () => {
       <SearchBar onSubmit={handleSearch} />
       {photos.length > 0 && <ImageGallery items={photos} onClick={openModal} />}
       {loading && <Loader />}
-      {error && !loading && <ErrorMessage>{errorMsg}</ErrorMessage>}
+      {error && !loading && <ErrorMessage>{error}</ErrorMessage>}
       {page === totalPages && photos.length > 0 && (
         <p
           style={{
@@ -100,7 +98,8 @@ const App = () => {
       <ImageModal
         isOpen={modalIsOpen}
         onRequestClose={closeModal}
-        modalImageUrl={modalImage}
+        modalImageUrl={modalImageSrc}
+        modalImageAlt={modalImageAlt}
       />
       <Toaster />
     </div>
